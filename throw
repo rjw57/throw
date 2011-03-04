@@ -7,7 +7,7 @@ import logging
 
 def main():
     parser = argparse.ArgumentParser(description='Simply share a file.')
-    parser.add_argument('paths', metavar='PATH', type=str, nargs='+',
+    parser.add_argument('paths', metavar='PATH', type=str, nargs='*',
         help='the name of a file or directory to share.')
     parser.add_argument('-v, --verbose', dest='verbose',
         action='store_true',
