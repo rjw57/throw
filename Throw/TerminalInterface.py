@@ -35,11 +35,6 @@ class TerminalInterface(object):
             self.message(message_str)
 
         def input(self, prompt = '', no_echo = False):
-            try:
-                import readline
-            except ImportError:
-                pass
-
             if no_echo:
                 import getpass
                 return getpass.getpass(prompt)
