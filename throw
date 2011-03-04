@@ -12,7 +12,7 @@ def main():
     parser.add_argument('-v, --verbose', dest='verbose',
         action='store_true',
         help='print verbose loggging information.')
-    parser.add_argument('-t, --to', dest='to', metavar='RECIPIENT', 
+    parser.add_argument('--to', dest='to', metavar='RECIPIENT', 
         action='append',
         help='a recipient for the file(s).')
 
