@@ -18,10 +18,17 @@ class TerminalInterface(object):
             self._output = output_stream
             self._writer = formatter.DumbWriter(output_stream, maxcol=self._width)
 
+        def literal_message(self, message_str):
+            self._writer.send_literal_data(message_str)
+            self._writer.send_paragraph(2)
+
         def message(self, message_str):
             for paragraph in message_str.split('\n\n'):
                 self._writer.send_flowing_data(paragraph.strip())
                 self._writer.send_paragraph(2)
+
+        def error(self, message_str):
+            self.message(message_str)
 
         def input(self, prompt = '', no_echo = False):
             try:
@@ -72,9 +79,16 @@ class TerminalInterface(object):
             self._width = min(curses.tigetnum('cols'), 72)
             self._writer = formatter.DumbWriter(self._output, maxcol=self._width)
 
-            #self._writer.send_literal_data(self.GREEN)
             TerminalInterface.DumbBackend.message(self, message_str)
-            #self._writer.send_literal_data(self.RESET_FG_BG)
+
+        def error(self, message_str):
+            # Update the writer with the current terminal width
+            self._width = min(curses.tigetnum('cols'), 72)
+            self._writer = formatter.DumbWriter(self._output, maxcol=self._width)
+
+            self._writer.send_literal_data(self.RED)
+            TerminalInterface.DumbBackend.message(self, message_str)
+            self._writer.send_literal_data(self.RESET_FG_BG)
 
         def input(self, prompt, *args, **kwargs):
             return TerminalInterface.DumbBackend.input(self,
@@ -98,6 +112,21 @@ class TerminalInterface(object):
     def message(self, message):
         self._backend.message(message)
 
-    def input(self, prompt, *args, **kwargs):
-        return self._backend.input(prompt=prompt, *args, **kwargs)
+    def error(self, message):
+        self._backend.error(message)
 
+    def literal_message(self, message):
+        self._backend.literal_message(message)
+
+    def input(self, prompt, *args, **kwargs):
+        return self._backend.input(prompt=prompt + ': ', *args, **kwargs)
+
+    def input_boolean(self, prompt):
+        while True:
+            input_val = self._backend.input(prompt + ' (YES/NO): ')
+            if input_val[0] == 'y' or input_val[0] == 'Y':
+                return True
+            elif input_val[0] == 'n' or input_val[0] == 'N':
+                return False
+            
+            self.message("I'm afraid I didn't understand that: please type 'YES' or 'NO'.")
