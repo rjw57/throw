@@ -77,7 +77,7 @@ class TerminalInterface(object):
             #self._writer.send_literal_data(self.RESET_FG_BG)
 
         def input(self, prompt, *args, **kwargs):
-            TerminalInterface.DumbBackend.input(self,
+            return TerminalInterface.DumbBackend.input(self,
                 self.GREEN + prompt + self.RESET_FG_BG, *args, **kwargs)
 
     # Implement the singleton pattern
