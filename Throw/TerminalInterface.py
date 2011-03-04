@@ -18,6 +18,10 @@ class TerminalInterface(object):
             self._output = output_stream
             self._writer = formatter.DumbWriter(output_stream, maxcol=self._width)
 
+        def horiz_rule(self):
+            self._writer.send_literal_data('-' * self._width)
+            self._writer.send_paragraph(1)
+
         def literal_message(self, message_str):
             self._writer.send_literal_data(message_str)
             self._writer.send_paragraph(2)
@@ -109,6 +113,9 @@ class TerminalInterface(object):
             # By default, use a dumb terminal backend
             self._backend = TerminalInterface.DumbBackend(stream)
 
+    def new_section(self):
+        self._backend.horiz_rule()
+
     def message(self, message):
         self._backend.message(message)
 
@@ -124,9 +131,11 @@ class TerminalInterface(object):
     def input_boolean(self, prompt):
         while True:
             input_val = self._backend.input(prompt + ' (YES/NO): ')
-            if input_val[0] == 'y' or input_val[0] == 'Y':
-                return True
-            elif input_val[0] == 'n' or input_val[0] == 'N':
-                return False
+
+            if len(input_val) > 0:
+                if input_val[0] == 'y' or input_val[0] == 'Y':
+                    return True
+                elif input_val[0] == 'n' or input_val[0] == 'N':
+                    return False
             
             self.message("I'm afraid I didn't understand that: please type 'YES' or 'NO'.")

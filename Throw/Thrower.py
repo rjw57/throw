@@ -12,6 +12,9 @@ class Thrower(object):
         self._interface = TerminalInterface.TerminalInterface()
 
     def throw(self, to, paths):
+        if to is None or len(to) == 0:
+            self._interface.new_section()
+
         while to is None or len(to) == 0:
             to = [ ]
 
@@ -47,7 +50,7 @@ class Thrower(object):
             if not self._interface.input_boolean("Is this list of e-mail addresses right?"):
                 to = None
                 
-
+        self._interface.new_section()
         self._interface.message("""
         I'm going to send your file by email but before I do that, I need to know
         your name and the email address you want to send the file from.""")
