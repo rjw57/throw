@@ -108,7 +108,10 @@ class TerminalInterface(object):
     def __init__(self, stream=sys.stdout):
         # Try to import curses and setup a terminal if our output is a TTY.
         if stream.isatty() and _has_curses:
-            self._backend = TerminalInterface.CursesBackend(stream)
+            try:
+                self._backend = TerminalInterface.CursesBackend(stream)
+            except curses.error:
+                self._backend = TerminalInterface.DumbBackend(stream)
         else:
             # By default, use a dumb terminal backend
             self._backend = TerminalInterface.DumbBackend(stream)
