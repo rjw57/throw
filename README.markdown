@@ -10,7 +10,7 @@ Usage
 To send the file 'funny-picture.png' to 'steve@example.com', just do the
 following:
 
-  $ throw --to steve@example.com funny-picture.png
+    $ throw --to steve@example.com funny-picture.png
 
 If you omit the `--to steve@example.com`, throw will ask you for the e-mail
 address to send the file to.
