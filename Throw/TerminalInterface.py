@@ -44,7 +44,11 @@ class TerminalInterface(object):
                 import getpass
                 return getpass.getpass(prompt)
             else:
-                return input(prompt)
+                # This magic is to support Python 3 as well as Python 2.
+                try:
+                    return raw_input(prompt)
+                except NameError:
+                    return input(prompt)
 
     class CursesBackend(DumbBackend):
         # Some of this class is taken from 
