@@ -63,7 +63,7 @@ class TerminalInterface(object):
             set_fg = curses.tigetstr('setf').decode('ascii')
             if set_fg:
                 for i,color in zip(range(len(self._COLORS)), self._COLORS):
-                    setattr(self, str(color), curses.tparm(set_fg, i).decode('ascii') or '')
+                    setattr(self, color, curses.tparm(set_fg, i).decode('ascii') or '')
             set_fg_ansi = curses.tigetstr('setaf').decode('ascii')
             if set_fg_ansi:
                 for i,color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
