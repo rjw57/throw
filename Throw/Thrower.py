@@ -1,5 +1,6 @@
 import logging
 import Throw.TerminalInterface as TerminalInterface
+import Throw.Config as cfg
 
 def throw(to, paths):
     t = Thrower()
@@ -10,6 +11,7 @@ class Thrower(object):
 
     def __init__(self):
         self._interface = TerminalInterface.TerminalInterface()
+        self._config = cfg.Config()
 
     def throw(self, to, paths):
         if to is None or len(to) == 0:
@@ -36,11 +38,37 @@ class Thrower(object):
                 if len(to) == 0:
                     self._interface.error("You need to give me at least one recipient.")
 
-        self._interface.new_section()
-        self._interface.message("""
-        I'm going to send your file by email but before I do that, I need to know
-        your name and the email address you want to send the file from.""")
+        identity = {
+            'name': self._config.get('user', 'name'),
+            'email': self._config.get('user', 'email'),
+        }
 
-        identity = { }
-        identity['name'] = self._interface.input('Your name')
-        identity['email'] = self._interface.input('Your e-mail address')
+        ask_to_save = False
+        
+        if identity['name'] is None:
+            self._interface.new_section()
+            self._interface.message("""
+            I'm going to send your file by email but before I do that, I need 
+            to know your name.""")
+            identity['name'] = self._interface.input('Your name')
+            ask_to_save = True
+
+        if identity['email'] is None:
+            self._interface.new_section()
+            self._interface.message("""
+            I'm going to send your file by email but before I do that, I need 
+            to know your e-mail address.""")
+            identity['email'] = self._interface.input('Your e-mail address')
+            ask_to_save = True
+        
+        if ask_to_save:
+            self._interface.new_section()
+            self._interface.message("""
+            Would you like me to remember your answers for next time? You can
+            change the name and email address I use to send email later.""")
+            should_save = self._interface.input_boolean('Rememeber these values')
+
+            if should_save:
+                self._config.set('user', 'name', identity['name'])
+                self._config.set('user', 'email', identity['email'])
+
