@@ -43,32 +43,22 @@ class Thrower(object):
             'email': self._config.get('user', 'email'),
         }
 
-        ask_to_save = False
-        
-        if identity['name'] is None:
+        if identity['name'] is None or identity['email'] is None:
             self._interface.new_section()
             self._interface.message("""
             I'm going to send your file by email but before I do that, I need 
-            to know your name.""")
-            identity['name'] = self._interface.input('Your name')
-            ask_to_save = True
+            to know your name and email address""")
 
-        if identity['email'] is None:
-            self._interface.new_section()
-            self._interface.message("""
-            I'm going to send your file by email but before I do that, I need 
-            to know your e-mail address.""")
-            identity['email'] = self._interface.input('Your e-mail address')
-            ask_to_save = True
-        
-        if ask_to_save:
-            self._interface.new_section()
+            if identity['name'] is None:
+                identity['name'] = self._interface.input('Your name')
+
+            if identity['email'] is None:
+                identity['email'] = self._interface.input('Your e-mail address')
+
             self._interface.message("""
             Would you like me to remember your answers for next time? You can
             change the name and email address I use to send email later.""")
-            should_save = self._interface.input_boolean('Rememeber these values')
-
-            if should_save:
+            if self._interface.input_boolean('Rememeber these values'):
                 self._config.set('user', 'name', identity['name'])
                 self._config.set('user', 'email', identity['email'])
 
