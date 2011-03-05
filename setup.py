@@ -6,7 +6,10 @@ setup(
     name = "throw",
     version = version.get_git_version(),
     packages = find_packages(),
-    scripts = ['throw.py'],
+
+    entry_points = {
+        'console_scripts': ['throw=Throw.throw:main'],
+    },
 
     install_requires = ['argparse'],
 
