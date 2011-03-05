@@ -4,3 +4,4 @@
 build/
 throw.egg-info/
 dist/
+RELEASE-VERSION

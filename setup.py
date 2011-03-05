@@ -1,7 +1,10 @@
 from setuptools import setup, find_packages
+
+import version
+
 setup(
     name = "throw",
-    version = "0.1",
+    version = version.get_git_version(),
     packages = find_packages(),
     scripts = ['throw'],
 
