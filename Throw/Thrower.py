@@ -15,9 +15,9 @@ import Throw.TerminalInterface as TerminalInterface
 import Throw.Config as cfg
 import Throw.minus.minus as minus
 
-def throw(to, paths):
+def throw(to, paths, name=None):
     t = Thrower()
-    t.throw(to, paths)
+    t.throw(to, paths, name=name)
 
 class Thrower(object):
     MAX_EMAIL_SIZE = 1000000 # 1MB
@@ -28,7 +28,7 @@ class Thrower(object):
         self._interface = TerminalInterface.TerminalInterface()
         self._config = cfg.Config()
 
-    def throw(self, to, paths):
+    def throw(self, to, paths, name=None):
         if to is None or len(to) == 0:
             self._interface.new_section()
 
@@ -100,16 +100,19 @@ class Thrower(object):
                 (len(filepaths), total_size / 1000000.0))
 
         outer = MIMEMultipart()
-        outer['Subject'] = 'Files thrown at you'
+        if name is None:
+            outer['Subject'] = 'Files thrown at you'
+        else:
+            outer['Subject'] = 'Files thrown at you: %s' % (name,)
         outer['From'] = '%s <%s>' % (identity['name'], identity['email'])
         outer['To'] = ', '.join(to)
         outer.preamble = 'Here are some files for you'
 
         if(total_size < Thrower.MAX_EMAIL_SIZE):
             # Less than the maximum email size, email directly
-            self._attach_files(outer, filepaths)
+            self._attach_files(outer, filepaths, name)
         else:
-            self._share_files(outer, filepaths)
+            self._share_files(outer, filepaths, name)
 
         try:
             # Try sending using our local SMTP server first
@@ -136,8 +139,12 @@ class Thrower(object):
             server.quit()
 
 
-    def _share_files(self, outer, filepaths):
+    def _share_files(self, outer, filepaths, name):
         gallery = minus.CreateGallery()
+
+        if name is not None:
+            gallery.SaveGallery(name)
+
         self._interface.new_section()
         self._interface.message(\
             'Uploading files to http://min.us/m%s...' % (gallery.reader_id,))
@@ -157,14 +164,14 @@ class Thrower(object):
         msg_str += "links:\n\n"
 
         for item, name in item_map.items():
-            msg_str += ' - http://i.min.us/j%s%s: %s' % \
+            msg_str += ' - http://i.min.us/j%s%s %s\n' % \
                     (item, os.path.splitext(name)[1], name)
 
         msg = MIMEText(msg_str)
         msg.add_header('Format', 'Flowed')
         outer.attach(msg)
 
-    def _attach_files(self, outer, filepaths):
+    def _attach_files(self, outer, filepaths, name):
         def add_file_to_outer(path):
             if not os.path.isfile(path):
                 return
