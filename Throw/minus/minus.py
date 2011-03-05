@@ -1,7 +1,21 @@
-import httplib
-import urllib
-import urllib2
-import cookielib
+try:
+    import httplib
+except ImportError:
+    import http.client as httplib
+
+try:
+    import urllib
+    import urllib2
+except ImportError:
+    import urllib.request
+    import urllib.parse
+    import urllib.error
+
+try:
+    import cookielib
+except ImportError:
+    import http.cookiejar as cookielib
+
 import mimetypes
 import json
 
@@ -22,8 +36,14 @@ class User(object):
             params = {"username":self.username, "password1":self.password1}
 
             self.cj = cookielib.CookieJar()
-            self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
-            self.login_data = urllib.urlencode(params)
+            try:
+                self.opener = urllib2.build_opener(\
+                        urllib2.HTTPCookieProcessor(self.cj))
+                self.login_data = urllib.urlencode(params)
+            except (NameError, AttributeError):
+                self.opener = urllib.request.build_opener(\
+                        urllib2.HTTPCookieProcessor(self.cj))
+                self.login_data = urllib.parse.urlencode(params)
             reponse = self.opener.open(url, self.login_data)
             
             parsed = json.loads(reponse.readlines()[0])
@@ -172,7 +192,7 @@ def UploadItem(filename, gallery, desiredName=None):
 
     params = {"editor_id":gallery.editor_id, "filename":name}
     
-    with file(filename, 'rb') as f:
+    with open(filename, 'rb') as f:
         itemData = f.read()
         
     response = _dopost(url, params=params, payload=itemData)
@@ -185,13 +205,19 @@ def UploadItem(filename, gallery, desiredName=None):
     return Item(_id, height=_height, width=_width, filesize=_filesize)    
 
 def _doget(url):
-    response = urllib2.urlopen(url)
+    try:
+        response = urllib2.urlopen(url)
+    except NameError:
+        response = urllib.request.urlopen(url)
     return _parseResponse(response)
 
 
 def _dopost(url, params=None, payload=None):
     if params:
-        encoded = urllib.urlencode(params)
+        try:
+            encoded = urllib.urlencode(params)
+        except AttributeError:
+            encoded = urllib.parse.urlencode(params)
     else:
         encoded = ''
 
@@ -200,10 +226,14 @@ def _dopost(url, params=None, payload=None):
     if payload is None:
         payload = ''
 
-    response = urllib2.urlopen(url, payload)
+    try:
+        response = urllib2.urlopen(url, payload)
+    except NameError:
+        response = urllib.request.urlopen(url, payload)
 
     return _parseResponse(response) 
 
 def _parseResponse(response):
-    return json.loads(''.join(response.readlines()))    # response.readlines() is a list of many parts of the json.
+    # response.readlines() is a list of many parts of the json.
+    return json.loads(''.join([x.decode() for x in response.readlines()]))
 
