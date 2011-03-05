@@ -132,7 +132,7 @@ class Thrower(object):
             if '@' not in usernm:
                 usernm += '@gmail.com'
 
-            server = smtplib.SMTP('smtp.gmail.com')
+            server = smtplib.SMTP('smtp.gmail.com', 587)
             server.starttls()
             server.login(usernm, passwd)
             server.sendmail(outer['From'], to, outer.as_string())
