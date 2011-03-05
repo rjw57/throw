@@ -13,12 +13,15 @@ from email.mime.text import MIMEText
 
 import Throw.TerminalInterface as TerminalInterface
 import Throw.Config as cfg
+import Throw.minus.minus as minus
 
 def throw(to, paths):
     t = Thrower()
     t.throw(to, paths)
 
 class Thrower(object):
+    MAX_EMAIL_SIZE = 1000000 # 1MB
+
     log = logging.getLogger('Thrower')
 
     def __init__(self):
@@ -74,12 +77,94 @@ class Thrower(object):
                 self._config.set('user', 'name', identity['name'])
                 self._config.set('user', 'email', identity['email'])
 
+        # Get a list of all the individual files to add.
+        def append_dir(paths, dirpath):
+            contents = [os.path.join(dirpath, x) for x in os.listdir(dirpath)]
+            paths += [x for x in contents if os.path.isfile(x)]
+            for subdirpath in [x for x in contents if os.path.isdir(x)]:
+                append_dir(paths, subdirpath)
+
+        filepaths = []
+        filepaths += [x for x in paths if os.path.isfile(x)]
+        for dirpath in [x for x in paths if os.path.isdir(x)]:
+            append_dir(filepaths, dirpath)
+
+        # Compute the total size of the files
+        total_size = 0
+        for path in filepaths:
+            total_size += os.path.getsize(path)
+
+        self._interface.new_section()
+        self._interface.message("""
+        You've asked me to throw %s file(s) with a total size of %s MB.""" % \
+                (len(filepaths), total_size / 1000000.0))
+
         outer = MIMEMultipart()
         outer['Subject'] = 'Files thrown at you'
         outer['From'] = '%s <%s>' % (identity['name'], identity['email'])
         outer['To'] = ', '.join(to)
         outer.preamble = 'Here are some files for you'
 
+        if(total_size < Thrower.MAX_EMAIL_SIZE):
+            # Less than the maximum email size, email directly
+            self._attach_files(outer, filepaths)
+        else:
+            self._share_files(outer, filepaths)
+
+        try:
+            # Try sending using our local SMTP server first
+            server = smtplib.SMTP()
+            server.sendmail(outer['From'], to, outer.as_string())
+            server.quit()
+        except smtplib.SMTPServerDisconnected:
+            # If that failed, log into a server
+            self._interface.message("""Attempting to send via GMail. Enter
+            your GMail address, for example 'steve@gmail.com', and your
+            password.""")
+
+            usernm = self._interface.input('Username')
+            passwd = self._interface.input('Password', no_echo=True)
+
+            # Add the '@gmail.com' part if omitted.
+            if '@' not in usernm:
+                usernm += '@gmail.com'
+
+            server = smtplib.SMTP('smtp.gmail.com')
+            server.starttls()
+            server.login(usernm, passwd)
+            server.sendmail(outer['From'], to, outer.as_string())
+            server.quit()
+
+
+    def _share_files(self, outer, filepaths):
+        gallery = minus.CreateGallery()
+        self._interface.new_section()
+        self._interface.message(\
+            'Uploading files to http://min.us/m%s...' % (gallery.reader_id,))
+
+        item_map = { }
+        for path in filepaths:
+            self._interface.message('Uploading %s...' % (os.path.basename(path),))
+            item = minus.UploadItem(path, gallery,
+                    desiredName=os.path.basename(path))
+            item_map[item.id] = os.path.basename(path)
+
+        msg_str = ''
+        msg_str += "I've shared some files with you. They are viewable as a "
+        msg_str += "gallery at the following link:\n\n - http://min.us/m%s\n\n" %\
+                (gallery.reader_id,)
+        msg_str += "The individual files can be downloaded from the following "
+        msg_str += "links:\n\n"
+
+        for item, name in item_map.items():
+            msg_str += ' - http://i.min.us/j%s%s: %s' % \
+                    (item, os.path.splitext(name)[1], name)
+
+        msg = MIMEText(msg_str)
+        msg.add_header('Format', 'Flowed')
+        outer.attach(msg)
+
+    def _attach_files(self, outer, filepaths):
         def add_file_to_outer(path):
             if not os.path.isfile(path):
                 return
@@ -128,44 +213,9 @@ class Thrower(object):
                     filename=os.path.basename(path))
             outer.attach(msg)
 
-        def add_dir_to_outer(dirpath):
-            if not os.path.isdir(dirpath):
-                return
-
-            add_paths_to_outer(\
-                    [os.path.join(dirpath, x) for x in os.listdir(dirpath)])
-
-        def add_paths_to_outer(paths):
-            for path in paths:
-                if os.path.isfile(path):
-                    add_file_to_outer(path)
-                elif os.path.isdir(path):
-                    add_dir_to_outer(path)
-
         outer.attach(MIMEText("Here are some files I've thrown at you."))
-        add_paths_to_outer(paths)
-
-        try:
-            # Try sending using our local SMTP server first
-            server = smtplib.SMTP()
-            server.sendmail(outer['From'], to, outer.as_string())
-            server.quit()
-        except smtplib.SMTPServerDisconnected:
-            # If that failed, log into a server
-            self._interface.message("""Attempting to send via GMail. Enter
-            your GMail address, for example 'steve@gmail.com', and your
-            password.""")
-
-            usernm = self._interface.input('Username')
-            passwd = self._interface.input('Password', no_echo=True)
-
-            # Add the '@gmail.com' part if omitted.
-            if '@' not in usernm:
-                usernm += '@gmail.com'
-
-            server = smtplib.SMTP('smtp.gmail.com')
-            server.starttls()
-            server.login(usernm, passwd)
-            server.sendmail(outer['From'], to, outer.as_string())
-            server.quit()
+        
+        for path in filepaths:
+            self._interface.literal_message('.')
+            add_file_to_outer(path)
 
