@@ -14,7 +14,8 @@ def main():
         action='append',
         help='a recipient for the file(s).')
     parser.add_argument('-n', '--name', dest='name', metavar='NAME', 
-        action='store', default=None)
+        action='store', default=None,
+        help='a descriptive name for this set of files.')
 
     args = parser.parse_args()
 
