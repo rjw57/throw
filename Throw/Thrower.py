@@ -93,10 +93,7 @@ class Thrower(object):
                 # use a generic bag-of-bits type.
                 ctype = 'application/octet-stream'
             maintype, subtype = ctype.split('/', 1)
-            #if maintype == 'text':
-            #    fp = open(path)
-            #    msg = MIMEText(fp.read(), _subtype=subtype)
-            #    fp.close()
+
             if maintype == 'image':
                 fp = open(path, 'rb')
                 msg = MIMEImage(fp.read(), _subtype=subtype)
@@ -105,6 +102,19 @@ class Thrower(object):
                 fp = open(path, 'rb')
                 msg = MIMEAudio(fp.read(), _subtype=subtype)
                 fp.close()
+            elif maintype == 'text':
+                # We do this to catch cases where text files have
+                # an encoding we can't guess correctly.
+                try:
+                    fp = open(path, 'r')
+                    msg = MIMEText(fp.read(), _subtype=subtype)
+                    fp.close()
+                except UnicodeDecodeError:
+                    fp = open(path, 'rb')
+                    msg = MIMEBase(maintype, subtype)
+                    msg.set_payload(fp.read())
+                    encoders.encode_base64(msg)
+                    fp.close()
             else:
                 fp = open(path, 'rb')
                 msg = MIMEBase(maintype, subtype)
@@ -132,11 +142,30 @@ class Thrower(object):
                 elif os.path.isdir(path):
                     add_dir_to_outer(path)
 
+        outer.attach(MIMEText("Here are some files I've thrown at you."))
         add_paths_to_outer(paths)
 
-        print(outer.as_string())
+        try:
+            # Try sending using our local SMTP server first
+            server = smtplib.SMTP()
+            server.sendmail(outer['From'], to, outer.as_string())
+            server.quit()
+        except smtplib.SMTPServerDisconnected:
+            # If that failed, log into a server
+            self._interface.message("""Attempting to send via GMail. Enter
+            your GMail address, for example 'steve@gmail.com', and your
+            password.""")
 
-        #server = smtplib.SMTP_SSL('localhost')
-        #server.sendmail(msg['From'], to, msg.as_string())
-        #server.quit()
+            usernm = self._interface.input('Username')
+            passwd = self._interface.input('Password', no_echo=True)
+
+            # Add the '@gmail.com' part if omitted.
+            if '@' not in usernm:
+                usernm += '@gmail.com'
+
+            server = smtplib.SMTP('smtp.gmail.com')
+            server.starttls()
+            server.login(usernm, passwd)
+            server.sendmail(outer['From'], to, outer.as_string())
+            server.quit()
 
