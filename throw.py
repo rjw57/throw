@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from Throw import Thrower
 
 import argparse

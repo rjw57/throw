@@ -6,7 +6,7 @@ setup(
     name = "throw",
     version = version.get_git_version(),
     packages = find_packages(),
-    scripts = ['throw'],
+    scripts = ['throw.py'],
 
     install_requires = ['argparse'],
 
