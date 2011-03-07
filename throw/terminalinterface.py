@@ -3,11 +3,11 @@ import logging
 import formatter
 import math
 
+# Don't require curses on platforms that don't have it.
 try:
     import curses
-    _has_curses = True
 except:
-    _has_curses = False
+    pass
 
 class TerminalInterface(object):
     _instance = None
@@ -48,6 +48,7 @@ class TerminalInterface(object):
 
         def start_progress(self):
             self._progress_ticker = 0
+            self._progress_percent = 0
             self.update_progress(0, 0)
 
         __prog_chars = r'/-\|'
@@ -61,27 +62,38 @@ class TerminalInterface(object):
                 percent = 0
             else:
                 percent = int(math.floor(100.0 * float(progress) / float(out_of)))
-            self._writer.send_literal_data('% 3d%% [' % percent)
-            
-            if out_of == 0:
-                progress_char_count = 0
-            else:
-                progress_char_count = int(math.floor(
-                        inner_width * float(progress) / float(out_of)))
 
-            if progress_char_count > 0:
-                self._writer.send_literal_data('=' * progress_char_count)
-            if progress_char_count < inner_width:
+            # Only output a pretty progress bar if we are a TTY.
+            if self._output.isatty():
+                self._writer.send_literal_data('% 3d%% [' % percent)
+                
+                if out_of == 0:
+                    progress_char_count = 0
+                else:
+                    progress_char_count = int(math.floor(
+                            inner_width * float(progress) / float(out_of)))
+
+                if progress_char_count > 0:
+                    self._writer.send_literal_data('=' * progress_char_count)
+                if progress_char_count < inner_width:
+                    self._writer.send_literal_data(
+                            ' ' * (inner_width - progress_char_count))
+                self._writer.send_literal_data('] ')
                 self._writer.send_literal_data(
-                        ' ' * (inner_width - progress_char_count))
-            self._writer.send_literal_data('] ')
-            self._writer.send_literal_data(
-                self.__prog_chars[self._progress_ticker % len(self.__prog_chars)])
+                    self.__prog_chars[
+                        self._progress_ticker % len(self.__prog_chars)])
 
-            self._writer.send_literal_data('\r')
+                self._writer.send_literal_data('\r')
 
-            self._writer.flush()
-            self._output.flush()
+                self._writer.flush()
+                self._output.flush()
+            elif percent / 2 > self._progress_percent / 2:
+                # Output one of the 50 dots until we're done...
+                self._writer.send_literal_data('.')
+                self._writer.flush()
+                self._output.flush()
+
+            self._progress_percent = max(percent, self._progress_percent)
          
         def end_progress(self):
             self._writer.send_literal_data('\n')
@@ -160,15 +172,19 @@ class TerminalInterface(object):
         return cls._instance
 
     def __init__(self, stream=sys.stdout):
+        # The fall-back backend is a sumb terminal
+        self._backend = TerminalInterface.DumbBackend(stream)
+
         # Try to import curses and setup a terminal if our output is a TTY.
-        if stream.isatty() and _has_curses:
-            try:
-                self._backend = TerminalInterface.CursesBackend(stream)
-            except curses.error:
-                self._backend = TerminalInterface.DumbBackend(stream)
-        else:
-            # By default, use a dumb terminal backend
-            self._backend = TerminalInterface.DumbBackend(stream)
+        try:
+            import curses
+            if stream.isatty():
+                try:
+                    self._backend = TerminalInterface.CursesBackend(stream)
+                except curses.error:
+                    pass
+        except ImportError:
+            pass
 
     def input_fields(self, preamble, *args):
         """Get a set of fields from the user. Optionally a preamble may be
