@@ -106,7 +106,7 @@ class Identity(object):
 
     __log = logging.getLogger(__name__ + '.Identity')
 
-    def __init__(self, name, email_, host,
+    def __init__(self, name, email_,
                  use_ssl = False, use_tls = False,
                  username = None, password = None, **kwargs):
         """Initialise an identity. The remain keyword arguments hold the SMTP
@@ -123,9 +123,6 @@ class Identity(object):
         If use_ssl is True, try to connect to the SMTP server via SSL.
             
         """
-
-        if host is None:
-            raise KeyError('Host not specified')
 
         self._interface = TerminalInterface()
         self._name = name
@@ -145,6 +142,9 @@ class Identity(object):
         for key in ['host', 'port']:
             if key in kwargs:
                 self._smtp_vars[key] = kwargs[key]
+
+        if self._smtp_vars['host'] is None:
+            raise KeyError('Host not specified')
 
         Identity.__log.info('Initialised identity "%s".' % self.get_rfc2822_address())
         Identity.__log.info('SMTP server options: %s' % self._smtp_vars)
