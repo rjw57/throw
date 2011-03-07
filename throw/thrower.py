@@ -21,7 +21,7 @@ def throw(to, paths, name=None):
     t.throw(to, paths, name=name)
 
 class Thrower(object):
-    MAX_EMAIL_SIZE = 1000000 # 1MB
+    MAX_EMAIL_SIZE = 500000 # 0.5MB
 
     log = logging.getLogger('Thrower')
 
@@ -47,12 +47,14 @@ class Thrower(object):
             while len(to) == 0:
                 should_continue = True
                 while should_continue:
-                    to.append(self._interface.input('E-mail address to send files to'))
+                    to.append(self._interface.input(
+                        'E-mail address to send files to'))
                     should_continue = (len(to[-1]) > 0)
                 to = to[:-1]
 
                 if len(to) == 0:
-                    self._interface.error("You need to give me at least one recipient.")
+                    self._interface.error(
+                        'You need to give me at least one recipient.')
 
         # Get a list of all the individual files to add.
         def append_dir(paths, dirpath):
