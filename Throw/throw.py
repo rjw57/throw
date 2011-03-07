@@ -1,7 +1,7 @@
-from Throw import Thrower
-
 import argparse
 import logging
+
+import Thrower
 
 def main():
     parser = argparse.ArgumentParser(description='Simply share a file.')

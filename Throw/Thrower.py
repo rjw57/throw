@@ -11,9 +11,9 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import Throw.TerminalInterface as TerminalInterface
-import Throw.Config as cfg
-import Throw.minus.minus as minus
+import TerminalInterface
+import Config as cfg
+import minus.minus as minus
 
 def throw(to, paths, name=None):
     t = Thrower()
