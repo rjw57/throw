@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 
 import os
+import sys
 import version
 
 # Utility function to read the README file.
@@ -9,6 +10,13 @@ import version
 # string in below ...
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+additional_requires = []
+
+# PyCURL is a Python 2-only module for the moment, so don't make it a 
+# dependency for Python 3.
+if sys.version_info[0] < 3:
+    additional_requires += ['pycurl']
 
 setup(
     name = "throw",
@@ -19,7 +27,7 @@ setup(
         'console_scripts': ['throw=throw.commandline:run'],
     },
 
-    install_requires = ['argparse'],
+    install_requires = ['argparse'] + additional_requires,
 
     test_suite = 'throw.tests.test_all',
 
@@ -44,8 +52,6 @@ setup(
         'Topic :: Communications :: File Sharing',
         'Topic :: Utilities',
 
-        # make sure to use :: Python *and* :: Python :: 3 so
-        # that pypi can list the package on the python 3 page
         'Programming Language :: Python',
         'Programming Language :: Python :: 3'
     ],

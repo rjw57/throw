@@ -1,107 +1,32 @@
-try:
-    import httplib
-except ImportError:
-    import http.client as httplib
+"""min.us support module.
 
-try:
-    import urllib
-    import urllib2
-except ImportError:
-    import urllib.request
-    import urllib.parse
-    import urllib.error
+This code is based on the code from http://code.google.com/p/python-minus/ but
+has been modified to be Python3 friendly and, where it is available, to make
+use of the pycurl module.
 
-try:
-    import cookielib
-except ImportError:
-    import http.cookiejar as cookielib
+We don't make use of the user login feature of min.us and so that code has been
+stripped out to make maintainance easier.
+
+"""
 
 import mimetypes
 import json
 
+# Try to import PyCURL if we have it but silently swallow the exception if it
+# isn't available (such as with Python3...).
+try:
+    import pycurl
+except ImportError:
+    pass
 
-class User(object):
-    def __init__(self, username, password1=None):
-        self.username = username
-        self.password1 = password1
-
-    def SignIn(self):
-        """Signs in the User.
-        User.password1 attribute must be set to the passsword before calling
-        this method.  Otherwise, an Exception will be raised.
-
-        """
-        if not self.password1:
-            raise Exception("There is no password set. Set the "+
-                "User.password1 attribute to the password before calling "+
-                "this method.")
-        else:
-            url = "http://min.us/api/SignIn"
-            params = {"username":self.username, "password1":self.password1}
-
-            self.cj = cookielib.CookieJar()
-            try:
-                self.opener = urllib2.build_opener(\
-                        urllib2.HTTPCookieProcessor(self.cj))
-                self.login_data = urllib.urlencode(params)
-            except (NameError, AttributeError):
-                self.opener = urllib.request.build_opener(\
-                        urllib2.HTTPCookieProcessor(self.cj))
-                self.login_data = urllib.parse.urlencode(params)
-            reponse = self.opener.open(url, self.login_data)
-
-            parsed = json.loads(reponse.readlines()[0])
-            if parsed["success"] == False:
-                raise Exception("Sign in failed.")
-            return parsed
-
-
-    def SignOut(self):
-        """Signs the User out of min.us."""
-        url = "http://min.us/api/SignOut"
-        response = self.opener.open(url)
-
-    def MyGalleries(self, returnObject=False):
-        """Returns a list of Gallery objects if returnObject=True.
-        If returnObject=False, it will return the parsed response
-        from the server as a dict.
-
-        Both the Gallery and dict contain the same information,
-        but both are availble for diversity.
-
-        NOTE: If the editor_id is not available, it is set to 'Unavailable'
-              because that's what the API json value is."""
-
-        # TODO
-        # Check if the API returns Unavailable for the editor_id
-
-
-        url = "http://min.us/api/MyGalleries.json"
-
-        response = self.opener.open(url)
-        parsed = _parseResponse
-
-        if returnObject == True:
-            galleryList = []
-            for gallery in parsed["galleries"]:
-                galleryList.append(
-                        Gallery(gallery["reader_id"],
-                            editor_id=gallery["editor_id"],
-                            name=gallery["name"],
-                            last_visit=gallery["last_visit"],
-                            item_count=gallery["item_count"],
-                            clicks=gallery["clicks"]))
-        elif returnObject == False:
-            return parsed
-
-    def Galleries(self):
-        """To be used in the future if other users' Galleries are available
-        through the API.
-
-        This method currently does nothing.
-
-        """
-        pass
+# This magic is to support the module re-naming that happened with the Python
+# 2->3 transition.
+try:
+    from urllib import urlencode
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
+    from urllib.parse import urlencode
 
 class Gallery(object):
     """Represents a min.us Gallery"""
@@ -189,13 +114,18 @@ def CreateGallery():
     return Gallery(_reader_id, editor_id=_editor_id)
 
 
-def UploadItem(filename, gallery, desiredName=None):
+def UploadItem(filename, gallery, desiredName=None, progress_cb=None):
     """filename is the full file location and name of the file
     WARNING: If your desiredName doesn't have a proper file extension (SHOULD
     be the same as the filename) it'll still upload, but you won't be able to
     download it or view it online. You can edit the name later to add the
     extension, but be careful, because it seems like you can't change the
     extension after that.
+
+    If progress_cb is not None, it should be a callable which takes two
+    arguments: the total number of bytes to upload and the number of bytes
+    which have been uploaded. The callable is called periodically to show the
+    progress of the upload.
 
     """
 
@@ -212,7 +142,7 @@ def UploadItem(filename, gallery, desiredName=None):
     with open(filename, 'rb') as f:
         itemData = f.read()
 
-    response = _dopost(url, params=params, payload=itemData)
+    response = _dopost(url, params=params, payload=itemData, progress_cb)
 
     _id = response["id"]
     _height = response["height"]
@@ -222,19 +152,19 @@ def UploadItem(filename, gallery, desiredName=None):
     return Item(_id, height=_height, width=_width, filesize=_filesize)
 
 def _doget(url):
-    try:
-        response = urllib2.urlopen(url)
-    except NameError:
-        response = urllib.request.urlopen(url)
+    response = urlopen(url)
     return _parseResponse(response)
 
 
-def _dopost(url, params=None, payload=None):
+def _dopost(url, params=None, payload=None, progress_cb=None):
+    """Do a HTTP post to upload some data. If progress_cb is not None, it
+    should be a callable which takes two arguments: the total number of bytes
+    to upload and the number of bytes which have been uploaded. The callable is
+    called periodically to show the progress of the upload.
+
+    """
     if params:
-        try:
-            encoded = urllib.urlencode(params)
-        except AttributeError:
-            encoded = urllib.parse.urlencode(params)
+        encoded = urlencode(params)
     else:
         encoded = ''
 
@@ -243,12 +173,40 @@ def _dopost(url, params=None, payload=None):
     if payload is None:
         payload = ''
 
+    # Try to make use of PyCURL if we have it
     try:
-        response = urllib2.urlopen(url, payload)
+        c = pycurl.Curl()
     except NameError:
-        response = urllib.request.urlopen(url, payload)
+        c = None
 
-    return _parseResponse(response)
+    if c is not None:
+        response = [ ]
+        def append_to_response(buf):
+            response.append(buf.decode())
+
+        def progress(download_t, download_d, upload_t, upload_d):
+            if progress_cb is not None:
+                progress_cb(upload_d, upload_t)
+
+        c = pycurl.Curl()
+        c.setopt(pycurl.URL, url)
+        c.setopt(pycurl.POST, 1)
+        c.setopt(pycurl.POSTFIELDS, payload)
+        c.setopt(pycurl.INFILESIZE, len(payload))
+        c.setopt(pycurl.WRITEFUNCTION, append_to_response)
+        c.setopt(pycurl.NOPROGRESS, 0)
+        c.setopt(pycurl.PROGRESSFUNCTION, progress)
+        c.perform()
+        c.close()
+
+        return json.loads(''.join(response))
+    else:
+        if progress_cb is not None:
+            progress_cb(0, len(payload))
+        response = [x.decode() for x in urlopen(url, payload).readlines()]
+        if progress_cb is not None:
+            progress_cb(len(payload), len(payload))
+        return json.loads(''.join(response))
 
 def _parseResponse(response):
     # response.readlines() is a list of many parts of the json.
