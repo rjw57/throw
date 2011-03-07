@@ -11,8 +11,8 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import TerminalInterface
-import Config as cfg
+from terminalinterface import *
+from config import *
 import minus.minus as minus
 
 def throw(to, paths, name=None):
@@ -25,8 +25,8 @@ class Thrower(object):
     log = logging.getLogger('Thrower')
 
     def __init__(self):
-        self._interface = TerminalInterface.TerminalInterface()
-        self._config = cfg.Config()
+        self._interface = TerminalInterface()
+        self._config = Config()
 
     def throw(self, to, paths, name=None):
         if to is None or len(to) == 0:

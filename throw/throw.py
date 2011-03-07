@@ -1,7 +1,7 @@
 import argparse
 import logging
 
-import Thrower
+from thrower import *
 
 def main():
     parser = argparse.ArgumentParser(description='Simply share a file.')
@@ -22,7 +22,7 @@ def main():
     if(args.verbose):
         logging.basicConfig(level=logging.INFO)
 
-    Thrower.throw(args.to, args.paths, args.name)
+    throw(args.to, args.paths, args.name)
 
 if __name__ == '__main__':
     main()

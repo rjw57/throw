@@ -8,7 +8,7 @@ setup(
     packages = find_packages(),
 
     entry_points = {
-        'console_scripts': ['throw=Throw.throw:main'],
+        'console_scripts': ['throw=throw.throw:main'],
     },
 
     install_requires = ['argparse'],
