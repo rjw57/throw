@@ -128,6 +128,8 @@ class TerminalInterface(object):
                 - password: return a string from the user but do not echo the
                   input to the screen
                 - boolean: return a boolean value from the user
+                - integer: return an integer value from the user
+            - the default value (optional)
 
         Fields are requested from the user in the order specified.
 
@@ -140,14 +142,27 @@ class TerminalInterface(object):
         if preamble is not None:
             self.message(preamble)
 
+        if any([True for x in args if len(x) > 3]):
+            self.message("""
+                Some questions have default answers which can be selected by
+                pressing 'Enter' at the prompt.""")
+
         output_dict = { }
-        for field_name, prompt, field_type in args:
+        for field in args:
+            (field_name, prompt, field_type) = field[:3]
+
+            default = None
+            if len(field) > 3:
+                default = field[3]
+
             if field_type == 'string':
-                output_dict[field_name] = self.input(prompt)
+                output_dict[field_name] = self.input(prompt, default = default)
             elif field_type == 'password':
                 output_dict[field_name] = self.input(prompt, no_echo=True)
             elif field_type == 'boolean':
-                output_dict[field_name] = self.input_boolean(prompt)
+                output_dict[field_name] = self.input_boolean(prompt, default = default)
+            elif field_type == 'integer':
+                output_dict[field_name] = self.input_integer(prompt, default = default)
 
         return output_dict
 
@@ -163,12 +178,40 @@ class TerminalInterface(object):
     def literal_message(self, message):
         self._backend.literal_message(message)
 
-    def input(self, prompt, *args, **kwargs):
-        return self._backend.input(prompt=prompt + ': ', *args, **kwargs)
+    def input(self, prompt, default = None, *args, **kwargs):
+        def_str = ''
+        if default is not None:
+            def_str = ' [%s]' % (default,)
+        input_val = self._backend.input(prompt=prompt + def_str + ': ', *args, **kwargs)
+        if default is not None and input_val == '':
+            return default
+        return input_val
 
-    def input_boolean(self, prompt):
+    def input_integer(self, prompt, default = None):
+        def_str = None
+        if default is not None:
+            def_str = str(default)
         while True:
-            input_val = self._backend.input(prompt + ' (YES/NO): ')
+            try:
+                input_val = self.input(prompt, default = def_str)
+                return int(input_val)
+            except ValueError:
+                pass
+
+            self.error('I expected a number, try again.')
+
+    def input_boolean(self, prompt, default = None):
+        def_str = None
+        if default is not None:
+            if default:
+                def_str = 'YES'
+            else:
+                def_str = 'NO'
+        while True:
+            input_val = self.input(prompt + ' (YES/NO)', default = def_str)
+
+            if default is not None and input_val == '':
+                return default
 
             if len(input_val) > 0:
                 if input_val[0] == 'y' or input_val[0] == 'Y':

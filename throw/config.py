@@ -18,8 +18,7 @@ class Config(object):
         },
         'smtp': {
             'host': {
-                'help': 'The hostname of a SMTP server to use to send mail',
-                'default': 'localhost' },
+                'help': 'The hostname of a SMTP server to use to send mail' },
             'port': {
                 'help': 'The port to connect the to SMTP server when sending mail',
                 'default': 25 },
