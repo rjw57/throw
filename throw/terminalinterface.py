@@ -115,6 +115,42 @@ class TerminalInterface(object):
             # By default, use a dumb terminal backend
             self._backend = TerminalInterface.DumbBackend(stream)
 
+    def input_fields(self, preamble, *args):
+        """Get a set of fields from the user. Optionally a preamble may be
+        shown to the user secribing the fields to return. The fields are
+        specified as the remaining arguments with each field being a a
+        list with the following entries:
+
+            - a programmer-visible name for the field
+            - a string prompt to show to the user
+            - one of the following values:
+                - string: return a string from the user
+                - password: return a string from the user but do not echo the
+                  input to the screen
+                - boolean: return a boolean value from the user
+
+        Fields are requested from the user in the order specified.
+
+        Fields are returned in a dictionary with the field names being the keys
+        and the values being the items.
+
+        """
+
+        self.new_section()
+        if preamble is not None:
+            self.message(preamble)
+
+        output_dict = { }
+        for field_name, prompt, field_type in args:
+            if field_type == 'string':
+                output_dict[field_name] = self.input(prompt)
+            elif field_type == 'password':
+                output_dict[field_name] = self.input(prompt, no_echo=True)
+            elif field_type == 'boolean':
+                output_dict[field_name] = self.input_boolean(prompt)
+
+        return output_dict
+
     def new_section(self):
         self._backend.horiz_rule()
 

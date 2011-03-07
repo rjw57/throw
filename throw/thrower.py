@@ -12,7 +12,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from terminalinterface import *
-from config import *
+import identity
+
 import minus.minus as minus
 
 def throw(to, paths, name=None):
@@ -26,7 +27,7 @@ class Thrower(object):
 
     def __init__(self):
         self._interface = TerminalInterface()
-        self._config = Config()
+        self._identity = identity.get_default_identity()
 
     def throw(self, to, paths, name=None):
         if to is None or len(to) == 0:
@@ -52,30 +53,6 @@ class Thrower(object):
 
                 if len(to) == 0:
                     self._interface.error("You need to give me at least one recipient.")
-
-        identity = {
-            'name': self._config.get('user', 'name'),
-            'email': self._config.get('user', 'email'),
-        }
-
-        if identity['name'] is None or identity['email'] is None:
-            self._interface.new_section()
-            self._interface.message("""
-            I'm going to send your file by email but before I do that, I need 
-            to know your name and email address""")
-
-            if identity['name'] is None:
-                identity['name'] = self._interface.input('Your name')
-
-            if identity['email'] is None:
-                identity['email'] = self._interface.input('Your e-mail address')
-
-            self._interface.message("""
-            Would you like me to remember your answers for next time? You can
-            change the name and email address I use to send email later.""")
-            if self._interface.input_boolean('Rememeber these values'):
-                self._config.set('user', 'name', identity['name'])
-                self._config.set('user', 'email', identity['email'])
 
         # Get a list of all the individual files to add.
         def append_dir(paths, dirpath):
@@ -104,7 +81,7 @@ class Thrower(object):
             outer['Subject'] = 'Files thrown at you'
         else:
             outer['Subject'] = 'Files thrown at you: %s' % (name,)
-        outer['From'] = '%s <%s>' % (identity['name'], identity['email'])
+        outer['From'] = self._identity.get_rfc2822_address()
         outer['To'] = ', '.join(to)
         outer.preamble = 'Here are some files for you'
 
@@ -114,30 +91,7 @@ class Thrower(object):
         else:
             self._share_files(outer, filepaths, name)
 
-        try:
-            # Try sending using our local SMTP server first
-            server = smtplib.SMTP()
-            server.sendmail(outer['From'], to, outer.as_string())
-            server.quit()
-        except smtplib.SMTPServerDisconnected:
-            # If that failed, log into a server
-            self._interface.message("""Attempting to send via GMail. Enter
-            your GMail address, for example 'steve@gmail.com', and your
-            password.""")
-
-            usernm = self._interface.input('Username')
-            passwd = self._interface.input('Password', no_echo=True)
-
-            # Add the '@gmail.com' part if omitted.
-            if '@' not in usernm:
-                usernm += '@gmail.com'
-
-            server = smtplib.SMTP('smtp.gmail.com', 587)
-            server.starttls()
-            server.login(usernm, passwd)
-            server.sendmail(outer['From'], to, outer.as_string())
-            server.quit()
-
+        self._identity.sendmail(to, outer.as_string())
 
     def _share_files(self, outer, filepaths, name):
         gallery = minus.CreateGallery()
