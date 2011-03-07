@@ -9,6 +9,10 @@ import terminalinterface
 import identity
 import thrower
 
+def run():
+    cli = CommandLine()
+    cli.main(sys.argv[1:])
+
 class CommandLine(object):
     def __init__(self):
         self._interface = terminalinterface.TerminalInterface()
