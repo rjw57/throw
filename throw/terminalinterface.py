@@ -1,6 +1,7 @@
 import sys
 import logging
 import formatter
+import math
 
 try:
     import curses
@@ -45,50 +46,100 @@ class TerminalInterface(object):
                 except NameError:
                     return input(prompt)
 
+        def start_progress(self):
+            self._progress_ticker = 0
+            self.update_progress(0, 0)
+
+        __prog_chars = r'/-\|'
+
+        def update_progress(self, progress, out_of=100):
+            self._progress_ticker += 1
+
+            inner_width = self._width - 10
+
+            if out_of == 0:
+                percent = 0
+            else:
+                percent = int(math.floor(100.0 * float(progress) / float(out_of)))
+            self._writer.send_literal_data('% 3d%% [' % percent)
+            
+            if out_of == 0:
+                progress_char_count = 0
+            else:
+                progress_char_count = int(math.floor(
+                        inner_width * float(progress) / float(out_of)))
+
+            if progress_char_count > 0:
+                self._writer.send_literal_data('=' * progress_char_count)
+            if progress_char_count < inner_width:
+                self._writer.send_literal_data(
+                        ' ' * (inner_width - progress_char_count))
+            self._writer.send_literal_data('] ')
+            self._writer.send_literal_data(
+                self.__prog_chars[self._progress_ticker % len(self.__prog_chars)])
+
+            self._writer.send_literal_data('\r')
+
+            self._writer.flush()
+            self._output.flush()
+         
+        def end_progress(self):
+            self._writer.send_literal_data('\n')
+             
+
     class CursesBackend(DumbBackend):
         # Some of this class is taken from 
         # http://code.activestate.com/recipes/475116-using-terminfo-for-portable-color-output-cursor-co/
         
-        _COLORS = "BLACK BLUE GREEN CYAN RED MAGENTA YELLOW WHITE".split()
-        _ANSICOLORS = "BLACK RED GREEN YELLOW BLUE MAGENTA CYAN WHITE".split()
+        __COLORS = "BLACK BLUE GREEN CYAN RED MAGENTA YELLOW WHITE".split()
+        __ANSICOLORS = "BLACK RED GREEN YELLOW BLUE MAGENTA CYAN WHITE".split()
 
         def __init__(self, output_stream):
             TerminalInterface.DumbBackend.__init__(self, output_stream)
 
             curses.setupterm(fd = output_stream.fileno())
+        
+            # Move to beginning of line
+            self.MOVE_TO_BOL = curses.tigetstr('cr')
+
+            # Clear to end of line
+            self.CLEAR_TO_EOL = curses.tigetstr('el')
 
             # Colors
             self.RESET_FG_BG = curses.tigetstr('op').decode('ascii')
 
             set_fg = curses.tigetstr('setf').decode('ascii')
             if set_fg:
-                for i,color in zip(range(len(self._COLORS)), self._COLORS):
-                    setattr(self, color, curses.tparm(set_fg, i).decode('ascii') or '')
+                for i,color in zip(range(len(self.__COLORS)), self.__COLORS):
+                    setattr(self, color,
+                            curses.tparm(set_fg, i).decode('ascii') or '')
             set_fg_ansi = curses.tigetstr('setaf').decode('ascii')
             if set_fg_ansi:
-                for i,color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
-                    setattr(self, color, curses.tparm(set_fg_ansi, i).decode('ascii') or '')
+                for i,color in zip(range(len(self.__ANSICOLORS)), self.__ANSICOLORS):
+                    setattr(self, color,
+                            curses.tparm(set_fg_ansi, i).decode('ascii') or '')
             set_bg = curses.tigetstr('setb').decode('ascii')
             if set_bg:
-                for i,color in zip(range(len(self._COLORS)), self._COLORS):
-                    setattr(self, 'BG_'+color, curses.tparm(set_bg, i).decode('ascii') or '')
+                for i,color in zip(range(len(self.__COLORS)), self.__COLORS):
+                    setattr(self, 'BG_'+color,
+                            curses.tparm(set_bg, i).decode('ascii') or '')
             set_bg_ansi = curses.tigetstr('setab').decode('ascii')
             if set_bg_ansi:
-                for i,color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
-                    setattr(self, 'BG_'+color, curses.tparm(set_bg_ansi, i).decode('ascii') or '')
+                for i,color in zip(range(len(self.__ANSICOLORS)), self.__ANSICOLORS):
+                    setattr(self, 'BG_'+color,
+                            curses.tparm(set_bg_ansi, i).decode('ascii') or '')
 
-        def message(self, message_str):
-            # Update the writer with the current terminal width
-            self._width = min(curses.tigetnum('cols'), 72)
+        def _refresh_width(self):
+            """Update the width of the terminal."""
+            self._width = curses.tigetnum('cols')
             self._writer = formatter.DumbWriter(self._output, maxcol=self._width)
 
+        def message(self, message_str):
+            self._refresh_width()
             TerminalInterface.DumbBackend.message(self, message_str)
 
         def error(self, message_str):
-            # Update the writer with the current terminal width
-            self._width = min(curses.tigetnum('cols'), 72)
-            self._writer = formatter.DumbWriter(self._output, maxcol=self._width)
-
+            self._refresh_width()
             self._writer.send_literal_data(self.RED)
             TerminalInterface.DumbBackend.message(self, message_str)
             self._writer.send_literal_data(self.RESET_FG_BG)
@@ -96,6 +147,10 @@ class TerminalInterface(object):
         def input(self, prompt, *args, **kwargs):
             return TerminalInterface.DumbBackend.input(self,
                 self.GREEN + prompt + self.RESET_FG_BG, *args, **kwargs)
+
+        def update_progress(self, *args, **kwargs):
+            self._refresh_width()
+            TerminalInterface.DumbBackend.update_progress(self, *args, **kwargs)
 
     # Implement the singleton pattern
     def __new__(cls, *args, **kwargs):
@@ -219,4 +274,14 @@ class TerminalInterface(object):
                 elif input_val[0] == 'n' or input_val[0] == 'N':
                     return False
             
-            self.message("I'm afraid I didn't understand that: please type 'YES' or 'NO'.")
+            self.message("I'm afraid I didn't understand that: " +
+                    "please type 'YES' or 'NO'.")
+
+    def start_progress(self):
+        self._backend.start_progress()
+
+    def update_progress(self, progress, out_of=100):
+        self._backend.update_progress(progress, out_of)
+
+    def end_progress(self):
+        self._backend.end_progress()

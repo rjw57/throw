@@ -142,7 +142,8 @@ def UploadItem(filename, gallery, desiredName=None, progress_cb=None):
     with open(filename, 'rb') as f:
         itemData = f.read()
 
-    response = _dopost(url, params=params, payload=itemData, progress_cb)
+    response = _dopost(url, params=params,
+            payload=itemData, progress_cb=progress_cb)
 
     _id = response["id"]
     _height = response["height"]

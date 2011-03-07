@@ -106,8 +106,10 @@ class Thrower(object):
         item_map = { }
         for path in filepaths:
             self._interface.message('Uploading %s...' % (os.path.basename(path),))
+            self._interface.start_progress()
             item = minus.UploadItem(path, gallery,
-                    desiredName=os.path.basename(path))
+                    os.path.basename(path), self._interface.update_progress)
+            self._interface.end_progress()
             item_map[item.id] = os.path.basename(path)
 
         msg_str = ''
