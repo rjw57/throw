@@ -244,7 +244,8 @@ class Identity(object):
             server.starttls()
 
         if self._credentials is not None:
-            if self._credentials[1] is None:
+            passwd = self._credentials[1]
+            if passwd is None:
                 passwd = self._interface.input( \
                     'Password for %s' % (self._credentials[0],), no_echo=True)
             server.login(*self._credentials)
