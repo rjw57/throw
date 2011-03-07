@@ -21,6 +21,8 @@ setup(
 
     install_requires = ['argparse'],
 
+    test_suite = 'throw.tests.test_all',
+
     # metadata for upload to PyPI
     author = "Rich Wareham",
     author_email = "rjw57@cam.ac.uk",
