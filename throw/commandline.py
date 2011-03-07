@@ -2,6 +2,8 @@
 
 import argparse
 import logging
+import sys
+import os
 
 import terminalinterface
 import identity
@@ -26,6 +28,8 @@ class CommandLine(object):
         self._parser.add_argument('--set', dest='set', metavar='OPTION',
             help='set a configuration option.',
             choices=('identity',))
+        self._parser.add_argument('--test-email', dest='send_test_email',
+            action='store_true', help='attempt to send a test email.')
 
     def main(self, argv):
         args = self._parser.parse_args(argv)
@@ -33,7 +37,18 @@ class CommandLine(object):
         if args.verbose:
             logging.basicConfig(level=logging.INFO)
 
-        if args.set is not None:
+        if args.send_test_email:
+            try:
+                config_id = identity.load_identity()
+                config_id.send_test_email()
+            except KeyError:
+                self._interface.error("""There is no default identity set up.
+
+                You need to run the following command first:
+
+                %s --set identity""" % os.path.basename(sys.argv[0]))
+
+        elif args.set is not None:
             if args.set == 'identity':
                 self.set_identity()
         else:

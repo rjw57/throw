@@ -68,6 +68,19 @@ class Config(object):
             return False
         return True
     
+    def get_section(self, section):
+        if section not in self._config_dict:
+            if section in Config.__options:
+                fallback_dict = { }
+                for option in Config.__options[section]:
+                    if 'default' in Config.__options[section][option]:
+                        fallback_dict[option] = \
+                            Config.__options[section][option]['default']
+                return fallback_dict
+            raise KeyError('No fallback found for configuration section "%s".' % (section,))
+
+        return self._config_dict[section]
+
     def get(self, section, option):
         if self.exists(section, option):
             if option in self._config_dict[section]:
