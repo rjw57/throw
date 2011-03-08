@@ -9,8 +9,8 @@ from email.mime.text import MIMEText
 from terminalinterface import *
 import identity
 
-import emailrenderer.minusgallery
-import emailrenderer.attachments
+import minus_renderer
+import attachment_renderer
 
 def throw(to, paths, name=None):
     t = Thrower()
@@ -76,10 +76,10 @@ class Thrower(object):
 
         if(total_size < Thrower.MAX_EMAIL_SIZE):
             # Less than the maximum email size, email directly
-            renderer = emailrenderer.attachments
+            renderer = attachment_renderer
         else:
             # Use the min.us uploader
-            renderer = emailrenderer.minusgallery
+            renderer = minus_renderer
 
         message = renderer.create_email(filepaths, name)
         message['From'] = self._identity.get_rfc2822_address()
