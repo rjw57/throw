@@ -56,21 +56,21 @@ class TerminalInterface(object):
         def update_progress(self, progress, out_of=100):
             self._progress_ticker += 1
 
-            inner_width = self._width - 10
+            inner_width = self._width - 11
 
             if out_of == 0:
                 percent = 0
             else:
-                percent = int(math.floor(100.0 * float(progress) / float(out_of)))
+                percent = int(math.ceil(100.0 * float(progress) / float(out_of)))
 
             # Only output a pretty progress bar if we are a TTY.
             if self._output.isatty():
-                self._writer.send_literal_data('% 3d%% [' % percent)
+                self._writer.send_literal_data('% 4d%% [' % percent)
                 
                 if out_of == 0:
                     progress_char_count = 0
                 else:
-                    progress_char_count = int(math.floor(
+                    progress_char_count = int(math.ceil(
                             inner_width * float(progress) / float(out_of)))
 
                 if progress_char_count > 0:
